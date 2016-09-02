@@ -1,0 +1,120 @@
+# Function to check host for open connections and displays PID and process associated with it
+# Can take as input a single IP address or a list separated by commas
+
+function get-netstat
+{             
+		[CmdletBinding()]             
+		param (             
+		   [string]$computer="localhost", 
+		   [array]$IpAddresses            
+			   )             
+	  
+BEGIN{}#begin             
+	
+	PROCESS{   
+	# Calls Netstat and looks for IP string
+	ForEach ($IpAddress in $IpAddresses)  #calls the process for each IP
+		{	
+          	Write-Verbose "Run netstat"            
+			Invoke-Command -ScriptBlock {netstat -ona} -ComputerName $computer |            
+			Select-String -Pattern $IpAddress | 
+			
+	#  For each IP String identified it cleans up the data		
+	foreach	{            
+             Write-Verbose "Split data - remove empties"            
+			 $item = $_.line.split(" ",[System.StringSplitOptions]::RemoveEmptyEntries)             
+				
+			 Write-Verbose "Accept Only TCP/UDP"            
+				if($item[1] -notmatch '^\[::') 
+					{            
+					   Write-Verbose "Get local IP address"            
+						if (($la = $item[1] -as [ipaddress]).AddressFamily -eq 'InterNetworkV6') 
+							{             
+							   $localAddress = $la.IPAddressToString             
+							   $localPort = $item[1].split('\]:')[-1]             
+							}             
+						
+						else 
+							{             
+							  $localAddress = $item[1].split(':')[0]             
+							  $localPort = $item[1].split(':')[-1]             
+							}              
+						
+						Write-Verbose "Get remote IP address"             
+						if (($ra = $item[2] -as [ipaddress]).AddressFamily -eq 'InterNetworkV6') 
+							{             
+							  $remoteAddress = $ra.IPAddressToString             
+							  $remotePort = $item[2].split('\]:')[-1]             
+							}             
+						else 
+							{             
+							  $remoteAddress = $item[2].split(':')[0]             
+							  $remotePort = $item[2].split(':')[-1]             
+							}              
+					
+					 New-Object -TypeName PSObject -Property @{             
+						  PID = $item[-1]             
+						  ProcessName = (Get-Process -Id $item[-1] -ErrorAction SilentlyContinue).Name             
+						  Protocol = $item[0]             
+						  LocalAddress = $localAddress             
+						  LocalPort = $localPort             
+						  RemoteAddress =$remoteAddress             
+						  RemotePort = $remotePort             
+						  State = if($item[0] -eq 'tcp') {$item[3]} else {$null}   }|
+													
+						select Protocol, LocalAddress, LocalPort, RemoteAddress, RemotePort, State, ProcessName, PID | Format-Table Protocol, LocalAddress, LocalPort, RemoteAddress, RemotePort, State, ProcessName, PID
+						        
+			 
+								
+							
+					}   			
+	} # foreach  
+
+		}				
+				}#process   
+	
+			
+	
+END{}#end            
+}
+
+## ----------------------------------------------------------------------------------------------------------------------------------------
+## Introduction to user
+## ----------------------------------------------------------------------------------------------------------------------------------------
+		echo ""
+		Write-Host -Fore Yellow "Run as administrator/elevated privileges!!!"
+		echo ""
+		Write-Host -Fore Cyan "Press a key to begin....."
+		$x = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+		echo ""
+		echo ""
+		$target = read-host ">>>>> Please enter a HOSTNAME or IP..."
+		echo ""
+		$QueryString = ('Select StatusCode From Win32_PingStatus Where Address = "' + $target + '"')
+		$ResultsSet = Gwmi -Q "$QueryString" 
+ 
+		If ($ResultsSet.StatusCode -Eq 0) 
+		{
+			Write-Host -Fore Green "The Device Is On Line"
+		} 
+		Else 
+		{
+			Write-Host -Fore Red "The device appears to be OFF LINE"
+			echo ""
+			Write-Host -ForegroundColor Cyan "Press any key to exit..."
+			[void][System.Console]::ReadKey($TRUE)
+			Break
+		}
+		$targetName = Get-WMIObject Win32_ComputerSystem -ComputerName $target | Out-Null
+		echo ""
+		Write-Host -ForegroundColor Yellow "==[ $targetName - $target ]=="
+
+		echo ""
+		
+		$IpAddresses = Read-Host "Input IP Addresses separated by commas"
+		$IpAddresses=$IpAddresses.Split(',')
+		
+
+	Get-Netstat $target $IpAddresses
+
+	

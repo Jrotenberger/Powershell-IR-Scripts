@@ -41,7 +41,7 @@ sensor = c.select(Sensor, sensor_id)
 
 
 with sensor.lr_session() as session:          # this will wait until the Live Response session is established
-    session.put_file(open("\\\\netapp-gob-2a\\carbonblk_forensics$\\artifactpullcb.ps1", "rb"),"c:\\windows\\CarbonBlack\\artifactpullcb.ps1")
+    session.put_file(open("\\\\DIRECTORY\\artifactpullcb.ps1", "rb"),"c:\\windows\\CarbonBlack\\artifactpullcb.ps1")
     session.create_process("PowerShell SET-EXECUTIONPOLICY UNRESTRICTED")
     output = session.create_process("PowerShell .\\artifactpullcb.ps1")
     session.create_process("PowerShell SET-EXECUTIONPOLICY RESTRICTED")

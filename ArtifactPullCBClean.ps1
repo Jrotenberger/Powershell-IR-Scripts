@@ -1,7 +1,7 @@
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ##	Powershell Data Collection Script for use with Carbon Black Enterprise Response
 ##
-##  Version 3.0
+##  Version 4.0  Updated 5/7/2019
 ##
 ##  This Powershell script is updated to follow the collection process modelled by Corey Harrell's
 ##  TR3Secure Data Collection Script: http://journeyintoir.blogspot.com/2013/09/tr3secure-data-collection-script.html and
@@ -21,13 +21,13 @@
 ##
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ##
-## 
+## 		
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## Set Module location to load external functions -  it can be a network drive
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
-		Get-Module -ListAvailable | Import-Module -Global
-		$module = "LOCATION of POWERSHELL scripts"
+		#Get-Module -ListAvailable | Import-Module -Global
+		$module = "NotNeeded"
 		
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## Set Target
@@ -74,13 +74,13 @@
 ## UPDATE THE FOLLOWING FOLDER TO CHANGE DESTINATION OF ARTIFACT DATA - POWERSHELL SUPPORTS NETWORK DRIVES
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 		
-		$dest = "Directory to put artifacts\$artfolder\"
+		$dest = "Directory of where to put artifacts"
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 ## LOCATION OF TOOLS - CAN BE USB OR NETWORK DRIVE 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 		
-		$tools = "Directory of tools referenced\tools"
+		$tools = "Directory of the tools referenced"
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -108,7 +108,7 @@
 ## Create Artifact Directories
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	Write-Host -Fore Green "Creating Artifact Directories...."
-	$dirList = ("$dest\autoruns","$dest\logs","$dest\network","$dest\prefetch","$dest\reg","$dest\MicrosoftAVQuarantine","$dest\memoryimage","$dest\AppCompat","$dest\MBR","$dest\Group_Policy")
+	$dirList = ("$dest\autoruns","$dest\logs","$dest\network","$dest\prefetch","$dest\MicrosoftAVQuarantine","$dest\memoryimage","$dest\AppCompat","$dest\reg","$dest\Group_Policy")
 	New-Item -Path $dest -ItemType Directory
 	New-Item -Path $dirList -ItemType Directory | Out-Null
 
@@ -149,8 +149,11 @@
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	
 	Write-Host -Fore Green "Pulling prefetch files...."
+	
 	Copy-Item x:\windows\prefetch\*.pf $dest\prefetch -recurse
 	gci -path X:\windows\prefetch\*.pf -ea 0 | select Name,LastAccessTime,CreationTime | sort LastAccessTime | ConvertTo-html -Body "<H2> Prefetch Files </H2>" >> $OutLevel1
+	
+	Write-Host -Fore Green "Done"
 	
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ## Perform Operations on user files 
@@ -172,42 +175,54 @@
 		
 		If ($OSArch -eq '32')
 		{
-		$command = '$tools\RawCopy.exe $source $destination'
+		$command = '$tools\RawCopy.exe /FileNamePath:$source /OutputPath:$destination'
 		iex "& $command"
 		}
 		ElseIf ($OSArch -eq '64')
 		{
-		$command = '$tools\RawCopy64.exe $source $destination'
+		$command = '$tools\RawCopy64.exe /FileNamePath:$source /OutputPath:$destination'
 		iex "& $command"
 		}
 		}
 		
-## ----------------------------------------------------------------------------------------------------------------------------------------		
-## Copy RecentFileCache
-## ----------------------------------------------------------------------------------------------------------------------------------------
-				
-		Copy-Item -force "$env:WINDIR\AppCompat\Programs\RecentFileCache.bcf" | Out-file $dest\AppCompat\RecentFileCache.bcf
+		Write-Host -Fore Green "Done"
 		
-		date | select DateTime | ConvertTo-html -Body "<H2> Recent File Cache Copied. </H2>" >> $OutLevel1
+## ----------------------------------------------------------------------------------------------------------------------------------------		
+## Copy AMCACHE.HVE
+## ----------------------------------------------------------------------------------------------------------------------------------------
+
+		Write-Host -Fore Green "Getting AMCACHE.hve...."	
+		
+		$source = "$env:WINDIR\AppCompat\Programs\Amcache.hve"
+		$destination = "$dest\AppCompat\"
+		$command = '$tools\RawCopy64.exe /FileNamePath:$source /OutputPath:$destination'
+		iex "& $command"
+				
+		date | select DateTime | ConvertTo-html -Body "<H2> AMCACHE.HVE Copied. </H2>" >> $OutLevel1
+		
+		Write-Host -Fore Green "Done"
 		
 ## ---------------------------------------------------------------------------------------------------------------------------------------- 
 ## Gather Memory from Target System - Can use other memory capture tools
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
+	Write-Host -Fore Green "Capturing memory"
 	
 	date | select DateTime | ConvertTo-html -Body "<H2> Ram Image Started </H2>" >> $OutLevel1
-		$command = '$tools\winpmem.exe $dest\memoryimage\memimage.bin'
-		iex "& $command"
+	#	$command = '$tools\winpmem.exe $dest\memoryimage\memimage.bin'
+	#	iex "& $command"
 	
-	date | select DateTime | ConvertTo-html -Body "<H2> Ram Image Complete </H2>" >> $OutLevel1
+	 date | select DateTime | ConvertTo-html -Body "<H2> Ram Image Complete </H2>" >> $OutLevel1
 
-
+	Write-Host -Fore Green "Done"
+	
 ## ----------------------------------------------------------------------------------------------------------------------------------------	
 ## MAIN ROUTINE
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	
-	
 	date | select DateTime | ConvertTo-html -Body "<H2> Process Information Extraction Started </H2>" >> $OutLevel1
+	
+	Write-Host -Fore Green "Capturing Process Information"
 	
 	#Process Information - Malware Forensics page 35 or WFA page 26
 	Get-Process | Out-File $dest\ProcessInfo_1_running-process.txt
@@ -222,13 +237,9 @@
 	date | select DateTime | ConvertTo-html -Body "<H2> Process to EXE Mapping </H2>" >> $OutLevel1
 	
 	#Process to user mapping #REFINE Malware Forensics page 38
-	Import-Module -Name $module\Get-ProcessOwner
-	get-wmiobject win32_process | Get-ProcessOwner | Select Name,CreationDate,Priority,ProcessID,ParentProcessID,Path,Owner,Computername |Out-File $dest\ProcessInfo_3_process-to-user-mapping.txt
-	date | select DateTime | ConvertTo-html -Body "<H2> Process to User Mapping </H2>" >> $OutLevel1	
 	
-	#Process to user mapping tab delimited Malware Forensics page 38
-	get-wmiobject win32_process | Get-ProcessOwner | Select Name,CreationDate,Priority,ProcessID,ParentProcessID,Path,Owner,Computername |Export-CSV $dest\ProcessInfo_3_process-to-user-mapping.csv
-	date | select DateTime | ConvertTo-html -Body "<H2> Process to User Mapping CSV </H2>" >> $OutLevel1
+	Get-Process -IncludeUserName >> $dest\ProcessInfo_3_process-to-user-mapping.txt
+	date | select DateTime | ConvertTo-html -Body "<H2> Process to User Mapping </H2>" >> $OutLevel1	
 	
 	#Child Processes - Malware Forensics page 40 or WFA page 26
 	date | select DateTime | ConvertTo-html -Body "<H2> Child Processes </H2>" >> $OutLevel1
@@ -264,16 +275,22 @@
 	#Process Dependencies - Malware Forensics page 44 or WFA page 26
 	date | select DateTime | ConvertTo-html -Body "<H2> Process Dependencies </H2>" >> $OutLevel1
 	Get-Process | select ProcessName -expand Modules -ea 0 | Format-Table Processname, modulename, filename -Groupby Processname | Out-File $dest\ProcessInfo_6_process-dependencies.txt
-## ----------------------------------------------------------------------------------------------------------------------------------------	
 	
-	#NETWORK INFORMATION
+	Write-Host -Fore Green "Done"
+	
+## ----------------------------------------------------------------------------------------------------------------------------------------	
+## NETWORK INFORMATION
+## ----------------------------------------------------------------------------------------------------------------------------------------
 	
 	
 	date | select DateTime | ConvertTo-html -Body "<H2> Gathering Network Information </H2>" >> $OutLevel1
+	
+	Write-Host -Fore Green "Gathering Network Information"
+	
 	Get-WMIObject Win32_NetworkAdapterConfiguration -ComputerName $target -Filter "IPEnabled='TRUE'" | select DNSHostName,ServiceName,MacAddress,@{l="IPAddress";e={$_.IPAddress -join ","}},@{l="DefaultIPGateway";e={$_.DefaultIPGateway -join ","}},DNSDomain,@{l="DNSServerSearchOrder";e={$_.DNSServerSearchOrder -join ","}},Description | Export-CSV $dest\network\netinfo.csv -NoTypeInformation | Out-Null
 	
 		#Active Network Connection - Malware Forensics page 26 or WFA page 21
-		Import-Module -Name $module\NetStat
+		
 		date | select DateTime | ConvertTo-html -Body "<H2> Active Network Connections </H2>" >> $OutLevel1
 		netstat.exe -ano > $dest\network\NetworkInfo_1_Active_Connections.txt
 	
@@ -359,6 +376,8 @@
 
 		Get-NetworkStatistics | Format-Table | Out-File $dest\network\network_9_port-to-process-mapping-csv.txt
 		
+		Write-Host -Fore Green "Done"
+		
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 ##	LOGGED ON USER INFORMATION
 ## ----------------------------------------------------------------------------------------------------------------------------------------	
@@ -366,6 +385,8 @@
 		#Locally/Remotely Logged on Users - Malware Forensics page 24 or WFA page 17
 		
 			date | select DateTime | ConvertTo-html -Body "<H2> Logged On Users </H2>" >> $OutLevel1
+			
+		Write-Host -Fore Green "Capture Logged On Users"
 		
 			function get-loggedonuser ($target){ 
 					 
@@ -425,42 +446,52 @@
 		#Active Logon Sessions - Malware Forensics page 25 or WFA page 18
 		date | select DateTime | ConvertTo-html -Body "<H2> Active Logon Sessions </H2>" >> $OutLevel1
 		Get-LoggedOnUser $target | Out-File $dest\users\UserInfo_3_active-logon-sessions.txt 
+		
+		Write-Host -Fore Green "Done"
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 	#OPENED FILES INFORMATION
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	
+		Write-Host -Fore Green "Open Files"
+		
 		#Open Files on the Computer  #NOT WORKING Due to Architecture - Malware Forensics page 25 or WFA page 18
-		date | select DateTime | ConvertTo-html -Body "<H2> Open files </H2>" >> $OutLevel1
-		$command = '$tools\openedfilesview.exe /stext $dest\OpenedFilesInfo_1_opened-files.txt'
-		iex "& $command"
+		#date | select DateTime | ConvertTo-html -Body "<H2> Open files </H2>" >> $OutLevel1
+		#$command = '$tools\openedfilesview.exe /stext $dest\OpenedFilesInfo_1_opened-files.txt'
+		#iex "& $command"
 				
 		#Remotely Opened Files - Malware Forensics page 59 or WFA page 19
 		date | select DateTime | ConvertTo-html -Body "<H2> Remotely Opened Files </H2>" >> $OutLevel1
 		openfiles.exe /query | Out-file $dest\OpenedFilesInfo_2_remotely-opened-files.txt
+		
+		Write-Host -Fore Green "Done"
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 ##  MISC INFORMATION	
 ## ----------------------------------------------------------------------------------------------------------------------------------------
+
+		Write-Host -Fore Green "Clipboard Contents"
 		
 		#Clipboard Contents - Malware Forensics page 63 and WFA page 37
 		date | select DateTime | ConvertTo-html -Body "<H2> Clipboard Contents </H2>" >> $OutLevel1
 		$text = & {powershell -sta {add-type -a system.windows.forms; [windows.forms.clipboard]::GetText()}} | Out-file $dest\MiscInfo_1_clipboard-contents.txt
+		
+		Write-Host -Fore Green "Done"
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 ##  SYSTEM INFORMATION
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
-		
+		Write-Host -Fore Green "System Information"
 	
 		date | select DateTime | ConvertTo-html -Body "<H2> Start System Information </H2>" >> $OutLevel1
 		#Operating System Version Done when version captured at start
 					
 		#System Uptime  - Malware Forensics page 21
-		Import-Module -Name $module\SystemUpTime
+		
 		date | select DateTime | ConvertTo-html -Body "<H2> System Uptime </H2>" >> $OutLevel1
-		SystemUpTime | Out-file $dest\System_2_system-uptime.txt
-		SystemUpTime | ConvertTo-html -Body "Results" >> $OutLevel1
+		(get-date) - (gcim Win32_OperatingSystem).LastBootUpTime | Out-file $dest\System_2_system-uptime.txt
+		(get-date) - (gcim Win32_OperatingSystem).LastBootUpTime | ConvertTo-html -Body "Results" >> $OutLevel1
 		
 		#Network Configuration - Malware Forensics page 19 and WFA page 34
 		date | select DateTime | ConvertTo-html -Body "<H2> Network Configuration </H2>" >> $OutLevel1
@@ -468,18 +499,12 @@
 				
 		#Enabled Network Protocols - Malware Forensics page 20
 		date | select DateTime | ConvertTo-html -Body "<H2> Network Protocols </H2>" >> $OutLevel1
-		$command = '$tools\urlprotocolview.exe /stext $dest\SystemInfo_4_enabled-network-protocols.txt'
-		iex "& $command"
-		
-		#Enabled Network Protocols - Malware Forensics page 20
-		date | select DateTime | ConvertTo-html -Body "<H2> Network Protocols CSV </H2>" >> $OutLevel1
-		$command = '$tools\urlprotocolview.exe /stab $dest\SystemInfo_4_enabled-network-protocols_tab.csv'
-		iex "& $command"
-				
+		Get-NetIPv4Protocol | Format-List -Property * >> $dest\SystemInfo_4_enabled-network-protocols.txt
+					
 		#Network Adapters in Promiscuous mode - Malware Forensics page 19 and WFA page 35
 		date | select DateTime | ConvertTo-html -Body "<H2> Promiscuous Adapters </H2>" >> $OutLevel1
-		$command = '$tools\promiscdetect.exe >> $dest\SystemInfo_5_promiscuous-adapters.txt'
-		iex "& $command"
+		Get-NetAdapter | Format-List -Property ifAlias,PromiscuousMode >> $dest\SystemInfo_5_promiscuous-adapters.txt
+		
 				
 		#MISC SYSTEM INFO 
 		Get-WMIObject Win32_LogicalDisk -ComputerName $target | Select DeviceID,DriveType,@{l="Drive Size";e={$_.Size / 1GB -join ""}},@{l="Free Space";e={$_.FreeSpace / 1GB -join ""}} | Export-CSV $dest\diskInfo.csv -NoTypeInformation | Out-Null
@@ -488,119 +513,67 @@
 		
 		
 		date | select DateTime | ConvertTo-html -Body "<H2> Volatile Data Collection Complete </H2>" >> $OutLevel1
+		
+		Write-Host -Fore Green "Done"
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 ## BOOT RECORD INFORMATION
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
+		## Commenting out for now  5/9/2019
+		
 		#Partition Information 
-		date | select DateTime | ConvertTo-html -Body "<H2> Partition Information </H2>" >> $OutLevel1
-		$command = '$tools\mmls.exe \\.\PHYSICALDRIVE0 >> $dest\MBR\partition-info.txt'
-		iex "& $command"
+		#date | select DateTime | ConvertTo-html -Body "<H2> Partition Information </H2>" >> $OutLevel1
+		#$command = '$tools\mmls.exe \\.\PHYSICALDRIVE0 >> $dest\MBR\partition-info.txt'
+		#iex "& $command"
 				
 		#Image the MBR in Sector 0  
-		date | select DateTime | ConvertTo-html -Body "<H2> Image MBR in Sector 0 </H2>" >> $OutLevel1
-		$command = '$tools\dd.exe if=\\.\PHYSICALDRIVE0 of=$dest\MBR\mbr.bin bs=512 count=1'
-		iex "& $command"
+		#date | select DateTime | ConvertTo-html -Body "<H2> Image MBR in Sector 0 </H2>" >> $OutLevel1
+		#$command = '$tools\dd.exe if=\\.\PHYSICALDRIVE0 of=$dest\MBR\mbr.bin bs=512 count=1'
+		#iex "& $command"
 				
 		#Imaging the sectors before the first partition 
 		
-		date | select DateTime | ConvertTo-html -Body "<H2> Image sectors before the first partition </H2>" >> $OutLevel1
-		If ($Version -gt '5.3')
-			{
-			$command = '$tools\dd.exe if=\\.\PHYSICALDRIVE0 of=$dest\mbr\win7_2008-2048-bytes.bin bs=512 count=2048'
-			iex "& $command"
-			}
-		Else
-			{
-			$command = '$tools\dd.exe if=\\.\PHYSICALDRIVE0 of=$dest\mbr\winXP_2003-63-bytes.bin bs=512 count=63'
-			iex "& $command"
-			}
+		#date | select DateTime | ConvertTo-html -Body "<H2> Image sectors before the first partition </H2>" >> $OutLevel1
+		#If ($Version -gt '5.3')
+		#	{
+		#	$command = '$tools\dd.exe if=\\.\PHYSICALDRIVE0 of=$dest\mbr\win7_2008-2048-bytes.bin bs=512 count=2048'
+		#	iex "& $command"
+		#	}
+		#Else
+		#	{
+		#	$command = '$tools\dd.exe if=\\.\PHYSICALDRIVE0 of=$dest\mbr\winXP_2003-63-bytes.bin bs=512 count=63'
+		#	iex "& $command"
+		#	}
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	#COLLECT REGISTRY FILES  
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	
+		Write-Host -Fore Green "Collecting Registry Files"
 		
 		date | select DateTime | ConvertTo-html -Body "<H2> Pulling Registry Files </H2>" >> $OutLevel1
-		$regLoc = "c:\windows\system32\config\"
 		
-		If ($OSArch -eq "64")
-				{
-				$command = '$tools\RawCopy64.exe $regLoc\SOFTWARE $dest\reg'
-				iex "& $command"
-								
-				$command = '$tools\RawCopy64.exe $regLoc\SYSTEM $dest\reg'
-				iex "& $command"
-								
-				$command = '$tools\RawCopy64.exe $regLoc\SAM $dest\reg'
-				iex "& $command"
-								
-				$command = '$tools\RawCopy64.exe $regLoc\SECURITY $dest\reg'
-				iex "& $command"
-								
-				}
-		Else
-		{
-				$command = '$tools\RawCopy.exe $regLoc\SOFTWARE $dest\reg'
-				iex "& $command"
-								
-				$command = '$tools\RawCopy.exe $regLoc\SYSTEM $dest\reg'
-				iex "& $command"
-								
-				$command = '$tools\RawCopy.exe $regLoc\SAM $dest\reg'
-				iex "& $command"
-								
-				$command = '$tools\RawCopy.exe $regLoc\SECURITY $dest\reg'
-				iex "& $command"
-		}
-		If ($Version -lt '5.4')
-		{
-		New-Item -Path $dest\reg\regback -ItemType Directory
-				If ($OSArch -eq "64")
-		{
-					$command = '$tools\RawCopy64.exe $regLoc\RegBack\SOFTWARE $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy64.exe $regLoc\RegBack\SAM $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy64.exe $regLoc\RegBack\SECURITY $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy64.exe $regLoc\RegBack\SYSTEM $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy64.exe $regLoc\RegBack\DEFAULT $dest\reg\regback'
-					iex "& $command"
-										
-		}
-				Else
-		{
-					$command = '$tools\RawCopy.exe $regLoc\RegBack\SOFTWARE $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy.exe $regLoc\RegBack\SYSTEM $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy.exe $regLoc\RegBack\SAM $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy.exe $regLoc\RegBack\SECURITY $dest\reg\regback'
-					iex "& $command"
-					
-					$command = '$tools\RawCopy.exe $regLoc\RegBack\DEFAULT $dest\reg\regback'
-					iex "& $command"
-		}
+		reg save HKLM\SOFTWARE $dest\reg\SOFTWARE
 		
-		}
-				
+		
+		reg save HKLM\SYSTEM $dest\reg\SYSTEM
+		
+		
+		reg save HKLM\SAM $dest\reg\SAM
+		
+		
+		reg save HKLM\SECURITY $dest\reg\SECURITY
+		
+					
 		Write-Host "  Done..."
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 ##  COLLECT EACH USERS REGISTRY FILES
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 		#Set User path variable
+		
+		Write-Host "User Registry Files"
 		
 		If ($Version -lt "5.4")
 		{
@@ -628,16 +601,18 @@
 						
 				If ($OSArch -eq '32')
 					{
-					$command = '$tools\RawCopy.exe $source $destination'
+					$command = '$tools\RawCopy.exe /FileNamePath:$source /OutputPath:$destination'
 					iex "& $command"
 					}
 				ElseIf ($OSArch -eq '64')
 					{
-					$command = '$tools\RawCopy64.exe $source $destination'
+					$command = '$tools\RawCopy64.exe /FileNamePath:$source /OutputPath:$destination'
 					iex "& $command"
 				}
 				}
 		}
+		
+		Write-Host "  Done..."
 		
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ##  COLLECTING NTFS ARTIFACTS
@@ -646,6 +621,8 @@
 		#Collecting the MFT Record
 		
 		date | select DateTime | ConvertTo-html -Body "<H2> Pulling the MFT.... </H2>" >> $OutLevel1
+		
+		Write-Host "MFT Record "
 		
 		If ($OSArch -eq "64")
 			{
@@ -677,11 +654,15 @@
 			iex "& $command"
 			}
 
+		Write-Host "  Done..."	
+			
 ## ----------------------------------------------------------------------------------------------------------------------------------------			
 ##  COLLECTING AUTOSTARTING LOCATIONS  
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	
 		date | select DateTime | ConvertTo-html -Body "<H2> AutoStarting Locations </H2>" >> $OutLevel1
+		
+		Write-Host "  Autostart Locations"
 		
 		#List system autostart locations - Malware Forensics page 69 or WFA page 44
 		$command = '$tools\autorunsc.exe -a /accepteula >> $dest\autoruns\$target-autostarting-locations.txt'
@@ -703,12 +684,12 @@
 		{
 			If ($OSArch -eq "64")
 				{
-				$command = '$tools\RawCopy64.exe $env:WINDIR\Tasks\SchedLgU.txt $dest\autoruns\'
+				$command = '$tools\RawCopy64.exe /FileNamePath:$env:WINDIR\Tasks\SchedLgU.txt /OutputPath:$dest\autoruns\'
 				iex "& $command"
 				}
 			Else
 				{
-				$command = '$tools\RawCopy.exe $env:WINDIR\SchedLgU.txt $dest\autoruns\'
+				$command = '$tools\RawCopy.exe /FileNamePath:$env:WINDIR\Tasks\SchedLgU.txt /OutputPath:$dest\autoruns\'
 				iex "& $command"
 				}}
 		Else  
@@ -716,6 +697,8 @@
 			$command = '$tools\robocopy.exe $env:WINDIR\Tasks $dest\autoruns\ /ZB /copy:DAT /r:0 /ts /FP /np /log:$dest\autoruns\tasks-robocopy-log.txt'
 			iex "& $command"
 			}
+		
+		Write-Host "  Done..."
 		
 #List all installed device drivers and their properties 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
@@ -727,28 +710,19 @@
 ##Copy Log Files
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
+		Write-Host -Fore Green "Copying Event log Files...."
 		
 		date | select DateTime | ConvertTo-html -Body "<H2> Event Logs </H2>" >> $OutLevel1
 		
-		$VERSION = (gwmi win32_OperatingSystem).Version 
-		If ($Version -lt "5.4") 
-			{
-			$logLoc = "x:\System32\config"
-			$loglist = @("$logLoc\AppEvent.evt","$logLoc\SecEvent.evt","$logLoc\SysEvent.evt")
-			}
-		Else
-			{
-			$logLoc = "x:\windows\system32\Winevt\Logs"
-			$loglist = @("$logLoc\application.evtx","$logLoc\security.evtx","$logLoc\system.evtx","$logLoc\Microsoft-Windows-User Profile Service%4Operational.evtx","$logLoc\Microsoft-Windows-TaskScheduler%4Operational.evtx")
-			}
-		Copy-Item -Path $loglist -Destination $dest\logs\ -Force
+		wevtutil epl Security $dest\logs\${Env:ComputerName}-Security.evtx
+		wevtutil epl System $dest\logs\${Env:ComputerName}-System.evtx
+		wevtutil epl Application $dest\logs\${Env:ComputerName}-Application.evtx
+		wevtutil epl Microsoft-Windows-TaskScheduler/Operational $dest\logs\${Env:ComputerName}-TaskScheduler.evtx
+		wevtutil epl Microsoft-Windows-PowerShell/Operational $dest\logs\${Env:ComputerName}-Powershell.evtx
+		wevtutil epl 'Microsoft-Windows-User Profile Service/Operational' $dest\logs\${Env:ComputerName}-UserProfileService.evtx
+		wevtutil epl Microsoft-Windows-Sysmon/Operational $dest\logs\${Env:ComputerName}-sysmon.evtx
 		
-	## Collect log folders for non-Legacy Windows System 
-		If ($Version -gt "5.3")
-			{
-			$command = '$tools\robocopy.exe C:\Windows\Logs\ $dest\logs\ /ZB /copy:DAT /r:0 /ts /FP /np /E /log:$dest\logs\logs-robocopy-log.txt'
-			iex "& $command"		
-			}
+		Write-Host -Fore Green "Done"
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------			
 #Collecting the AV log and quarantine folder - Will need to modify for AV used
@@ -756,8 +730,10 @@
 	
 	date | select DateTime | ConvertTo-html -Body "<H2> AV Logs </H2>" >> $OutLevel1
 	
+	Write-Host -Fore Green "Copying AV logs and Quarantine Folder...."
+	
 	##Copy Microsoft Endpoint Quarantine Files (default location)##
-			$QuarQ = "C:\ProgramData\Microsoft\Microsoft Antimalware\Quarantine"
+			$QuarQ = "C:\ProgramData\Microsoft\Windows Defender\Support\Quarantine"
 			if (Test-Path -Path "$QuarQ\*.vbn") {
 				New-Item -Path $dest\MicrosoftAVQuarantine -ItemType Directory  | Out-Null
 				Copy-Item -Path "$QuarQ\*.*" $dest\MicrosoftAVQuarantine -Force -Recurse
@@ -768,7 +744,7 @@
 				}
 
 	##Copy Microsoft Endpoint Log Files (default location)##
-			$EndLog = "C:\ProgramData\Microsoft\Microsoft Antimalware\Support"
+			$EndLog = "C:\ProgramData\Microsoft\Windows Defender\Support"
 			if (Test-Path -Path "$EndLog\*.log") {
 				New-Item -Path $dest\MicrosoftAVLogs -ItemType Directory  | Out-Null
 				Copy-Item -Path "$EndLog\*.Log" $dest\MicrosoftAVLogs -Force -Recurse
@@ -778,25 +754,35 @@
 				Start-Sleep -Seconds 5
 				}
 
+	Write-Host -Fore Green "Done"				
+				
 ## ----------------------------------------------------------------------------------------------------------------------------------------				
-#Group Policy Information - Malware Forensics page 73  
+#Group Policy Information - Malware Forensics page 73  https://docs.microsoft.com/en-us/windows/security/identity-protection/user-account-control/user-account-control-group-policy-and-registry-key-settings#user-account-control-admin-approval-mode-for-the-built-in-administrator-account
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	
 	date | select DateTime | ConvertTo-html -Body "<H2> Group Policy Info </H2>" >> $OutLevel1
+	
+	Write-Host -Fore Green "Capturing Registry Keys for UAC Group Policy Settings"
+	
 	gp -ea 0 hklm:\Software\Microsoft\Windows\CurrentVersion\policies\system | select * -ExcludeProperty PS* | ConvertTo-html -Body "<H2> Important Registry keys - UAC Group Policy Settings </H2>" >> $OutLevel1
-	$command = '$tools\gplist.exe > $dest\group_policy\group-policy-listing.txt'
-	iex "& $command"
-			
+	gp -ea 0 hklm:\Software\Microsoft\Windows\CurrentVersion\policies\system > $dest\group_policy\group-policy-listing.txt
+	
+	
+				
 #GPResult.exe Results - Malware Forensics page 73
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
 	$command = 'gpresult /Z >> $dest\group_policy\$target-group-policy-RSoP.txt'
 	iex "& $command"
-			
+
+	Write-Host -Fore Green "Done"
+	
 ##Copy Internet History files##
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 	
 	date | select DateTime | ConvertTo-html -Body "<H2> Internet History Files </H2>" >> $OutLevel1
+	
+	Write-Host -Fore Green "Copy Internet History Files"
 	
 	##	Microsoft Internet Explorer
 
@@ -843,6 +829,8 @@
 		Start-Sleep -Seconds 5
 		}
 
+		Write-Host -Fore Green "Done"
+		
 # Get Journal File 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
@@ -868,6 +856,8 @@
 ## User Information  - Only pulls Users that have logged in within the last 15 days
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
+
+Write-Host -Fore Green "Pull users that have logged in within the last 15 days"
 
 date | select DateTime | ConvertTo-html -Body "<H2> User Info </H2>" >> $OutLevel1
 
@@ -990,7 +980,7 @@ $VERSION = (gwmi win32_OperatingSystem).Version
 		If ($Version -lt "5.4") 
 			{
 			$userpath = "C:\Documents and Settings"
-			$command = "$tools\robocopy.exe $userpath\$user\Application'Data\Sun\Java\Deployment\cache $UserData\Java_Cache /ZB /copy:DAT /r:0 /ts /FP /np /E /log:$dest\users\$user\robocopy-log_java.txt"
+			$command = "$tools\robocopy.exe $userpath\$user\ApplicationData\Sun\Java\Deployment\cache $UserData\Java_Cache /ZB /copy:DAT /r:0 /ts /FP /np /E /log:$dest\users\$user\robocopy-log_java.txt"
 			iex "& $command"
 			}
 		Else 
@@ -1001,7 +991,8 @@ $VERSION = (gwmi win32_OperatingSystem).Version
 			}
 		}		
 		
-
+Write-Host -Fore Green "Done"
+		
 # Startup Applications
 
 		
@@ -1073,5 +1064,4 @@ $VERSION = (gwmi win32_OperatingSystem).Version
 ##Ending##
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
-	
 

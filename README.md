@@ -2,6 +2,19 @@
 # ArtifactPull.ps1 is initial commit
 # Tools contains list of tools referenced.
 
+UPDATED 5/10/2019
+
+NEW NEW NEW
+
+I updated the script (it was a long time coming).
+
+CHANGES: 
+
+1) No extra PS modules are needed.  For the most part these got rolled in the main script
+2) The external tools needed have been dramatically decreased.  For the most part these have been replicated by Powershell capabilities since the orginal script was written.
+
+
+
 I've been using variations of this script for going on 3 years now and its always served me very well.  The inspiration comes from 
 Corey Harrell who had a similar Perl script.
 

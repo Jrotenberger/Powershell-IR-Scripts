@@ -11,7 +11,7 @@ I updated the script (it was a long time coming).
 CHANGES: 
 
 1) No extra PS modules are needed.  For the most part these got rolled in the main script
-2) The external tools needed have been dramatically decreased.  For the most part these have been replicated by Powershell capabilities since the orginal script was written.
+2) The external tools needed have been dramatically decreased.  The majority have been replicated by Powershell capabilities since the orginal script was written.
 
 
 

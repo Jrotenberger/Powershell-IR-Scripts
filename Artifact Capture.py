@@ -35,7 +35,7 @@ from cbapi.response import CbEnterpriseResponseAPI, Sensor
 c = CbEnterpriseResponseAPI()
 
 print("Enter Sensor ID")
-name = raw_input()
+name = input()
 sensor_id = name
 sensor = c.select(Sensor, sensor_id)
 

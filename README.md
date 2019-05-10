@@ -13,6 +13,7 @@ CHANGES:
 1) No extra PS modules are needed.  For the most part these got rolled in the main script
 2) The external tools needed have been dramatically decreased.  The majority have been replicated by Powershell capabilities since the orginal script was written.
 3) The memory capture portion of the script is commented out by default.  If you want it as part of this script, you'll need to remove the '#" on lines 212/213.
+4) I added a memory capture only script.  Again, it will use whatever command line memory capture tool you desire.
 
 
 I've been using variations of this script for going on 3 years now and its always served me very well.  The inspiration comes from 

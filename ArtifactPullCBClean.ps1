@@ -1,7 +1,12 @@
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ##	Powershell Data Collection Script for use with Carbon Black Enterprise Response
+##		To use, simply configure the $dest and $tools variables to reflect appropriate paths.
 ##
-##  Version 4.0  Updated 5/7/2019
+##  Version 4.1  Updated 5/28/2019
+##	Changelog:
+##		Version 4.1: Minor edits to code comments. 5/28/2019
+##		Version 4.0: Removed unnessesary powershell modules, cleaned code. 5/7/2019
+##		Version 3.0: Initial public release. 9/2/2016
 ##
 ##  This Powershell script is updated to follow the collection process modelled by Corey Harrell's
 ##  TR3Secure Data Collection Script: http://journeyintoir.blogspot.com/2013/09/tr3secure-data-collection-script.html and
@@ -17,7 +22,7 @@
 ##
 ##		Other contributors are mentioned in the code where applicable
 ##
-##	Copyright 2013 Jeff Rotenberger 
+##	Copyright 2019 Jeff Rotenberger 
 ##
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 ##
@@ -74,13 +79,13 @@
 ## UPDATE THE FOLLOWING FOLDER TO CHANGE DESTINATION OF ARTIFACT DATA - POWERSHELL SUPPORTS NETWORK DRIVES
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 		
-		$dest = "Directory of where to put artifacts"
+		$dest = "Directory of where to put artifacts, can be a network share."
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------		
 ## LOCATION OF TOOLS - CAN BE USB OR NETWORK DRIVE 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 		
-		$tools = "Directory of the tools referenced"
+		$tools = "Directory of the tools referenced, can be a network share."
 
 ## ----------------------------------------------------------------------------------------------------------------------------------------
 
